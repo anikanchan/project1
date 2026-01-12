@@ -1,0 +1,178 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ECS Service and Task Definition for E-Commerce Backend'
+
+Parameters:
+  Environment:
+    Type: String
+  ClusterArn:
+    Type: String
+  TargetGroupArn:
+    Type: String
+  PrivateSubnets:
+    Type: String
+  ECSSecurityGroup:
+    Type: String
+  TaskExecutionRoleArn:
+    Type: String
+  TaskRoleArn:
+    Type: String
+  ECRRepositoryUri:
+    Type: String
+  DBSecretArn:
+    Type: String
+  AppSecretsArn:
+    Type: String
+  DBEndpoint:
+    Type: String
+  ProjectName:
+    Type: String
+    Default: ecommerce-backend
+
+Mappings:
+  EnvironmentConfig:
+    dev:
+      Cpu: 256
+      Memory: 512
+      DesiredCount: 1
+      MinCapacity: 1
+      MaxCapacity: 2
+    staging:
+      Cpu: 512
+      Memory: 1024
+      DesiredCount: 2
+      MinCapacity: 1
+      MaxCapacity: 4
+    prod:
+      Cpu: 1024
+      Memory: 2048
+      DesiredCount: 2
+      MinCapacity: 2
+      MaxCapacity: 10
+
+Resources:
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/ecs/${ProjectName}-${Environment}'
+      RetentionInDays: 30
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${ProjectName}-${Environment}'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: !FindInMap [EnvironmentConfig, !Ref Environment, Cpu]
+      Memory: !FindInMap [EnvironmentConfig, !Ref Environment, Memory]
+      ExecutionRoleArn: !Ref TaskExecutionRoleArn
+      TaskRoleArn: !Ref TaskRoleArn
+      ContainerDefinitions:
+        - Name: !Ref ProjectName
+          Image: !Sub '${ECRRepositoryUri}:latest'
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              Protocol: tcp
+          Environment:
+            - Name: SPRING_PROFILES_ACTIVE
+              Value: !Ref Environment
+            - Name: DB_URL
+              Value: !Sub 'jdbc:postgresql://${DBEndpoint}:5432/ecommerce'
+          Secrets:
+            - Name: DB_USERNAME
+              ValueFrom: !Sub '${DBSecretArn}:username::'
+            - Name: DB_PASSWORD
+              ValueFrom: !Sub '${DBSecretArn}:password::'
+            - Name: STRIPE_SECRET_KEY
+              ValueFrom: !Sub '${AppSecretsArn}:STRIPE_SECRET_KEY::'
+            - Name: STRIPE_PUBLISHABLE_KEY
+              ValueFrom: !Sub '${AppSecretsArn}:STRIPE_PUBLISHABLE_KEY::'
+            - Name: JWT_SECRET
+              ValueFrom: !Sub '${AppSecretsArn}:JWT_SECRET::'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+            Interval: 30
+            Timeout: 10
+            Retries: 3
+            StartPeriod: 60
+
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub '${ProjectName}-${Environment}-service'
+      Cluster: !Ref ClusterArn
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: 0
+      LaunchType: FARGATE
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          Subnets: !Split [',', !Ref PrivateSubnets]
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
+      LoadBalancers:
+        - TargetGroupArn: !Ref TargetGroupArn
+          ContainerName: !Ref ProjectName
+          ContainerPort: 8080
+      HealthCheckGracePeriodSeconds: 120
+
+  ScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: !FindInMap [EnvironmentConfig, !Ref Environment, MaxCapacity]
+      MinCapacity: 0
+      ResourceId: !Sub 'service/${ClusterArn}/${ECSService.Name}'
+      RoleARN: !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService'
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  ScalingPolicyCPU:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub '${ProjectName}-${Environment}-cpu-scaling'
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 70
+        ScaleInCooldown: 300
+        ScaleOutCooldown: 60
+
+  ScalingPolicyMemory:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub '${ProjectName}-${Environment}-memory-scaling'
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageMemoryUtilization
+        TargetValue: 80
+        ScaleInCooldown: 300
+        ScaleOutCooldown: 60
+
+Outputs:
+  ServiceName:
+    Value: !GetAtt ECSService.Name
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-service-name'
+  ServiceArn:
+    Value: !Ref ECSService
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-service-arn'

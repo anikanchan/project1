@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'RDS PostgreSQL Database for E-Commerce Backend'
+
+Parameters:
+  Environment:
+    Type: String
+  VpcId:
+    Type: String
+  PrivateSubnets:
+    Type: String
+  DatabaseSecurityGroup:
+    Type: String
+  DBSecretArn:
+    Type: String
+  ProjectName:
+    Type: String
+    Default: ecommerce-backend
+
+Mappings:
+  EnvironmentConfig:
+    dev:
+      InstanceClass: db.t3.micro
+      AllocatedStorage: '20'
+      MultiAZ: 'false'
+    staging:
+      InstanceClass: db.t3.small
+      AllocatedStorage: '50'
+      MultiAZ: 'false'
+    prod:
+      InstanceClass: db.t3.medium
+      AllocatedStorage: '100'
+      MultiAZ: 'true'
+
+Resources:
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS
+      SubnetIds: !Split [',', !Ref PrivateSubnets]
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-db-subnet-group'
+
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    Properties:
+      DBInstanceIdentifier: !Sub '${ProjectName}-${Environment}-db'
+      DBInstanceClass: !FindInMap [EnvironmentConfig, !Ref Environment, InstanceClass]
+      Engine: postgres
+      EngineVersion: '15'
+      MasterUsername: !Sub '{{resolve:secretsmanager:${DBSecretArn}:SecretString:username}}'
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DBSecretArn}:SecretString:password}}'
+      DBName: ecommerce
+      AllocatedStorage: !FindInMap [EnvironmentConfig, !Ref Environment, AllocatedStorage]
+      StorageType: gp2
+      MultiAZ: !FindInMap [EnvironmentConfig, !Ref Environment, MultiAZ]
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      PubliclyAccessible: false
+      BackupRetentionPeriod: 1
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  DBEndpoint:
+    Value: !GetAtt RDSInstance.Endpoint.Address
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-db-endpoint'
+  DBPort:
+    Value: !GetAtt RDSInstance.Endpoint.Port
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-db-port'
