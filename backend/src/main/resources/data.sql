@@ -16,3 +16,4 @@ INSERT INTO users (email, password, first_name, last_name, role, created_at) VAL
 -- Insert test user (password: user123)
 INSERT INTO users (email, password, first_name, last_name, role, created_at) VALUES
 ('user@example.com', '$2a$10$YMpL0kNcVy.Nw4r8OZGX8.4xHuMY8sLlvB7u8vS0vQ3TQnLbMCqWK', 'Test', 'User', 'USER', CURRENT_TIMESTAMP);
+
