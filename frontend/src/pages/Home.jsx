@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import { productAPI } from '../services/api';
+import logger from '../services/logger';
 
 export default function Home() {
   const [products, setProducts] = useState([]);
@@ -13,7 +14,7 @@ export default function Home() {
         const response = await productAPI.getAll();
         setProducts(response.data.slice(0, 4));
       } catch (error) {
-        console.error('Failed to fetch products:', error);
+        logger.error('Failed to fetch products: ' + error.message, { source: 'Home' });
       } finally {
         setLoading(false);
       }

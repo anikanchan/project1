@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
+import logger from '../../services/logger';
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState([]);
@@ -16,7 +17,7 @@ export default function OrderManagement() {
       const response = await adminAPI.getAllOrders();
       setOrders(response.data);
     } catch (error) {
-      console.error('Failed to fetch orders:', error);
+      logger.error('Failed to fetch orders: ' + error.message, { source: 'OrderManagement' });
     } finally {
       setLoading(false);
     }
@@ -29,7 +30,7 @@ export default function OrderManagement() {
       await fetchOrders();
       setSelectedOrder(null);
     } catch (error) {
-      console.error('Failed to update order status:', error);
+      logger.error('Failed to update order status: ' + error.message, { source: 'OrderManagement' });
     } finally {
       setUpdating(false);
     }

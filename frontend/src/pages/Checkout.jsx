@@ -5,6 +5,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import CheckoutForm from '../components/CheckoutForm';
 import { useCart } from '../context/CartContext';
 import { orderAPI, paymentAPI, configAPI } from '../services/api';
+import logger from '../services/logger';
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -32,7 +33,7 @@ export default function Checkout() {
         const stripe = loadStripe(response.data.publishableKey);
         setStripePromise(stripe);
       } catch (err) {
-        console.error('Failed to load Stripe:', err);
+        logger.error('Failed to load Stripe: ' + err.message, { source: 'Checkout' });
       }
     };
     initStripe();

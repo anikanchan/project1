@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import ProductCard from '../components/ProductCard';
 import { productAPI } from '../services/api';
+import logger from '../services/logger';
 
 export default function ProductList() {
   const [products, setProducts] = useState([]);
@@ -13,8 +14,8 @@ export default function ProductList() {
         const response = await productAPI.getAll();
         setProducts(response.data);
       } catch (err) {
-        setError('Failed to load products. Please try again later.');
-        console.error('Failed to fetch products:', err);
+        setError('Failed to load products. Please contact support.');
+        logger.error('Failed to fetch products: ' + err.message, { source: 'ProductList' });
       } finally {
         setLoading(false);
       }

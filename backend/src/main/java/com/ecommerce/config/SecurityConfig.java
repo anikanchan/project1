@@ -34,6 +34,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/orders/**").permitAll()
                         .requestMatchers("/api/payments/**").permitAll()
                         .requestMatchers("/api/config/stripe").permitAll()
+                        .requestMatchers("/api/logs/**").permitAll()
                         // H2 console
                         .requestMatchers("/h2-console/**").permitAll()
                         // Admin endpoints

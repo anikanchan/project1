@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { adminAPI } from '../../services/api';
+import logger from '../../services/logger';
 
 export default function Dashboard() {
   const [orders, setOrders] = useState([]);
@@ -17,7 +18,7 @@ export default function Dashboard() {
         setOrders(ordersRes.data);
         setProducts(productsRes.data);
       } catch (error) {
-        console.error('Failed to fetch data:', error);
+        logger.error('Failed to fetch dashboard data: ' + error.message, { source: 'AdminDashboard' });
       } finally {
         setLoading(false);
       }

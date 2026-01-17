@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
+import logger from '../../services/logger';
 
 export default function ProductManagement() {
   const [products, setProducts] = useState([]);
@@ -11,7 +12,7 @@ export default function ProductManagement() {
         const response = await adminAPI.getAllProducts();
         setProducts(response.data);
       } catch (error) {
-        console.error('Failed to fetch products:', error);
+        logger.error('Failed to fetch products: ' + error.message, { source: 'ProductManagement' });
       } finally {
         setLoading(false);
       }

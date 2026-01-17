@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { productAPI } from '../services/api';
+import logger from '../services/logger';
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -16,7 +17,7 @@ export default function ProductDetail() {
         const response = await productAPI.getById(id);
         setProduct(response.data);
       } catch (error) {
-        console.error('Failed to fetch product:', error);
+        logger.error('Failed to fetch product: ' + error.message, { source: 'ProductDetail' });
       } finally {
         setLoading(false);
       }

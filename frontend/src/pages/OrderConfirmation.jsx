@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { orderAPI } from '../services/api';
+import logger from '../services/logger';
 
 export default function OrderConfirmation() {
   const { orderId } = useParams();
@@ -13,7 +14,7 @@ export default function OrderConfirmation() {
         const response = await orderAPI.getById(orderId);
         setOrder(response.data);
       } catch (error) {
-        console.error('Failed to fetch order:', error);
+        logger.error('Failed to fetch order: ' + error.message, { source: 'OrderConfirmation' });
       } finally {
         setLoading(false);
       }
