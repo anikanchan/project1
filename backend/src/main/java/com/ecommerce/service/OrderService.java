@@ -10,6 +10,7 @@ import com.ecommerce.model.User;
 import com.ecommerce.repository.OrderRepository;
 import com.ecommerce.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderService {
 
     private final OrderRepository orderRepository;
@@ -27,6 +29,7 @@ public class OrderService {
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request, String userEmail) {
+        log.info("Creating order for customer: {}", request.getCustomerEmail());
         User user = null;
         if (userEmail != null) {
             user = userRepository.findByEmail(userEmail).orElse(null);
@@ -49,6 +52,8 @@ public class OrderService {
             Product product = productService.getProductEntity(itemRequest.getProductId());
 
             if (product.getStockQuantity() < itemRequest.getQuantity()) {
+                log.error("Insufficient stock for product: {} (requested: {}, available: {})",
+                        product.getName(), itemRequest.getQuantity(), product.getStockQuantity());
                 throw new RuntimeException("Insufficient stock for product: " + product.getName());
             }
 
@@ -66,46 +71,69 @@ public class OrderService {
 
         order.setTotalAmount(totalAmount);
         Order savedOrder = orderRepository.save(order);
+        log.info("Order created successfully with id: {} and total: ${}", savedOrder.getId(), totalAmount);
 
         return OrderResponse.fromOrder(savedOrder);
     }
 
     public OrderResponse getOrderById(Long id) {
+        log.debug("Fetching order by id: {}", id);
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
+                .orElseThrow(() -> {
+                    log.error("Order not found with id: {}", id);
+                    return new RuntimeException("Order not found with id: " + id);
+                });
         return OrderResponse.fromOrder(order);
     }
 
     public Order getOrderEntity(Long id) {
+        log.debug("Fetching order entity by id: {}", id);
         return orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
+                .orElseThrow(() -> {
+                    log.error("Order entity not found with id: {}", id);
+                    return new RuntimeException("Order not found with id: " + id);
+                });
     }
 
     public List<OrderResponse> getOrdersByUserEmail(String email) {
+        log.info("Fetching orders for email: {}", email);
         return orderRepository.findByCustomerEmailOrderByCreatedAtDesc(email).stream()
                 .map(OrderResponse::fromOrder)
                 .collect(Collectors.toList());
     }
 
     public List<OrderResponse> getAllOrders() {
-        return orderRepository.findAllByOrderByCreatedAtDesc().stream()
+        log.info("Fetching all orders");
+        List<OrderResponse> orders = orderRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(OrderResponse::fromOrder)
                 .collect(Collectors.toList());
+        log.debug("Found {} total orders", orders.size());
+        return orders;
     }
 
     @Transactional
     public OrderResponse updateOrderStatus(Long orderId, Order.OrderStatus status) {
+        log.info("Updating order {} status to {}", orderId, status);
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found with id: " + orderId));
+                .orElseThrow(() -> {
+                    log.error("Order not found for status update, id: {}", orderId);
+                    return new RuntimeException("Order not found with id: " + orderId);
+                });
         order.setStatus(status);
+        log.info("Order {} status updated to {}", orderId, status);
         return OrderResponse.fromOrder(orderRepository.save(order));
     }
 
     @Transactional
     public void markOrderAsPaid(Long orderId) {
+        log.info("Marking order {} as paid", orderId);
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found with id: " + orderId));
+                .orElseThrow(() -> {
+                    log.error("Order not found for marking as paid, id: {}", orderId);
+                    return new RuntimeException("Order not found with id: " + orderId);
+                });
         order.setStatus(Order.OrderStatus.PAID);
         orderRepository.save(order);
+        log.info("Order {} marked as paid", orderId);
     }
 }
