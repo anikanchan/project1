@@ -12,7 +12,8 @@ import software.amazon.awssdk.services.cloudwatchlogs.model.*;
 @Slf4j
 public class CloudWatchLoggingService {
 
-    private final CloudWatchLogsClient cloudWatchLogsClient;
+    private CloudWatchLogsClient cloudWatchLogsClient;
+    private boolean enabled = false;
 
     @Value("${cloudwatch.log-group-name:ecommerce-frontend-logs}")
     private String logGroupName;
@@ -20,16 +21,32 @@ public class CloudWatchLoggingService {
     @Value("${cloudwatch.log-stream-name:frontend}")
     private String logStreamName;
 
+    @Value("${cloudwatch.enabled:true}")
+    private boolean cloudwatchEnabled;
+
     private String sequenceToken;
 
     public CloudWatchLoggingService() {
-        this.cloudWatchLogsClient = CloudWatchLogsClient.create();
+        // CloudWatch client will be initialized in @PostConstruct
     }
 
     @PostConstruct
     public void init() {
-        ensureLogGroupExists();
-        ensureLogStreamExists();
+        if (!cloudwatchEnabled) {
+            log.info("CloudWatch logging is disabled");
+            return;
+        }
+
+        try {
+            this.cloudWatchLogsClient = CloudWatchLogsClient.create();
+            this.enabled = true;
+            log.info("CloudWatch logging initialized");
+            ensureLogGroupExists();
+            ensureLogStreamExists();
+        } catch (Exception e) {
+            log.warn("CloudWatch logging disabled - AWS not available: {}", e.getMessage());
+            this.enabled = false;
+        }
     }
 
     private void ensureLogGroupExists() {
@@ -77,6 +94,11 @@ public class CloudWatchLoggingService {
     }
 
     public void sendLog(LogEntryRequest logEntry) {
+        if (!enabled) {
+            log.debug("CloudWatch disabled - logging locally: [{}] {}", logEntry.getLevel(), logEntry.getMessage());
+            return;
+        }
+
         try {
             String formattedMessage = formatLogMessage(logEntry);
             long timestamp = logEntry.getTimestamp() != null ? logEntry.getTimestamp() : System.currentTimeMillis();
