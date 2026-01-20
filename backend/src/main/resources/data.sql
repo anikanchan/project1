@@ -9,11 +9,11 @@ INSERT INTO products (name, description, price, stock_quantity, image_url, categ
 ('4K Webcam', 'Professional 4K webcam with autofocus and noise reduction', 179.99, 25, 'https://images.unsplash.com/photo-1587826080692-f439cd0b70da?w=400', 'Electronics', true, CURRENT_TIMESTAMP),
 ('Desk Organizer', 'Minimalist desk organizer with phone stand and pen holder', 29.99, 120, 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=400', 'Accessories', true, CURRENT_TIMESTAMP);
 
--- Insert admin user (password: admin123)
+-- Insert admin user (password: password)
 INSERT INTO users (email, password, first_name, last_name, role, created_at) VALUES
-('admin@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3.rsC0KedtjGn/bGkdSa', 'Admin', 'User', 'ADMIN', CURRENT_TIMESTAMP);
+('admin@example.com', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG', 'Admin', 'User', 'ADMIN', CURRENT_TIMESTAMP);
 
--- Insert test user (password: user123)
+-- Insert test user (password: password)
 INSERT INTO users (email, password, first_name, last_name, role, created_at) VALUES
-('user@example.com', '$2a$10$YMpL0kNcVy.Nw4r8OZGX8.4xHuMY8sLlvB7u8vS0vQ3TQnLbMCqWK', 'Test', 'User', 'USER', CURRENT_TIMESTAMP);
+('user@example.com', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG', 'Test', 'User', 'USER', CURRENT_TIMESTAMP);
 
